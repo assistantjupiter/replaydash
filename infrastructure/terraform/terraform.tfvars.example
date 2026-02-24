@@ -1,0 +1,37 @@
+# Copy this file to terraform.tfvars and update with your values
+
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "production"
+
+# Database Configuration
+db_instance_class         = "db.t4g.medium"
+db_allocated_storage      = 20
+db_max_allocated_storage  = 100
+
+# Redis Configuration
+redis_node_type = "cache.t4g.micro"
+
+# ECS Configuration
+api_cpu            = 512
+api_memory         = 1024
+api_desired_count  = 2
+api_min_capacity   = 1
+api_max_capacity   = 4
+
+# Domain Configuration
+domain_name     = "api.replaydash.com"
+certificate_arn = "" # Leave empty to create new certificate
+
+# CORS Configuration
+cors_origin = "https://replaydash.com"
+
+# Monitoring
+alert_email = "medina@example.com" # Change to your email
+
+# Tags
+tags = {
+  Project   = "ReplayDash"
+  ManagedBy = "Terraform"
+  Owner     = "Medina"
+}

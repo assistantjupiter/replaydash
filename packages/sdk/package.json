@@ -1,37 +1,24 @@
 {
   "name": "@replaydash/sdk",
   "version": "0.1.0",
-  "description": "ReplayDash Browser SDK for session recording",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "lint": "eslint src --ext .ts",
-    "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist .turbo node_modules"
-  },
-  "keywords": [
-    "session-recording",
-    "replay",
-    "analytics"
+  "description": "ReplayDash JavaScript SDK for session recording",
+  "main": "dist/replaydash.cjs.js",
+  "module": "dist/replaydash.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
   ],
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^22.10.7",
-    "tsup": "^8.3.5",
-    "typescript": "^5.7.2"
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@replaydash/shared": "*"
+    "rrweb": "^2.0.0-alpha.11"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10"
   }
 }

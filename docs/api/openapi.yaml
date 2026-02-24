@@ -1,0 +1,367 @@
+openapi: 3.0.0
+info:
+  title: ReplayDash API
+  description: Session replay and user analytics API for capturing and analyzing user interactions
+  version: '1.0'
+  contact:
+    name: ReplayDash Support
+    url: https://replaydash.com
+
+servers:
+  - url: http://localhost:3001
+    description: Local development
+  - url: https://api.replaydash.com
+    description: Production
+
+tags:
+  - name: events
+    description: Event ingestion endpoints
+  - name: sessions
+    description: Session management endpoints
+
+paths:
+  /api/v1/events:
+    post:
+      tags:
+        - events
+      summary: Ingest session events
+      description: Captures and stores user interaction events for session replay. Includes DOM snapshots, clicks, scrolls, and other user interactions.
+      operationId: ingestEvents
+      security:
+        - api-key: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestEventsDto'
+            examples:
+              basic:
+                summary: Basic event ingestion
+                value:
+                  sessionId: sess_abc123def456
+                  userId: user_789xyz
+                  userEmail: user@example.com
+                  userAgent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
+                  url: https://example.com/dashboard
+                  timestamp: 1708777200000
+                  events:
+                    - type: rrweb/full-snapshot
+                      timestamp: 1708777200000
+                      data:
+                        node:
+                          type: 0
+                          childNodes: []
+                        initialOffset:
+                          top: 0
+                          left: 0
+                    - type: rrweb/mouse-move
+                      timestamp: 1708777200100
+                      data:
+                        x: 150
+                        y: 200
+      responses:
+        '201':
+          description: Events successfully ingested
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sessions:
+    get:
+      tags:
+        - sessions
+      summary: List all sessions
+      description: Retrieves a paginated list of all captured sessions with metadata including user information, timestamps, and page URLs.
+      operationId: listSessions
+      security:
+        - api-key: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: Number of sessions to return
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Number of sessions to skip for pagination
+      responses:
+        '200':
+          description: List of sessions successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+        '401':
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sessions/{id}:
+    get:
+      tags:
+        - sessions
+      summary: Get session details
+      description: Retrieves detailed information about a specific session including metadata, duration, and summary statistics.
+      operationId: getSession
+      security:
+        - api-key: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Session ID
+          example: sess_abc123def456
+      responses:
+        '200':
+          description: Session details successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionDetails'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sessions/{id}/events:
+    get:
+      tags:
+        - sessions
+      summary: Get session events
+      description: Retrieves all captured events for a specific session in chronological order. These events can be used to replay the user session.
+      operationId: getSessionEvents
+      security:
+        - api-key: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Session ID
+          example: sess_abc123def456
+      responses:
+        '200':
+          description: Session events successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionEventsResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    api-key:
+      type: apiKey
+      name: x-api-key
+      in: header
+      description: API key for authentication. Get your API key from the ReplayDash dashboard.
+
+  schemas:
+    IngestEventsDto:
+      type: object
+      required:
+        - sessionId
+        - events
+        - timestamp
+      properties:
+        sessionId:
+          type: string
+          description: Unique session identifier
+          example: sess_abc123def456
+        userId:
+          type: string
+          description: User identifier (if authenticated)
+          example: user_789xyz
+        userEmail:
+          type: string
+          description: User email address (if available)
+          example: user@example.com
+        userAgent:
+          type: string
+          description: Browser user agent string
+          example: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
+        url:
+          type: string
+          description: URL of the page where events were captured
+          example: https://example.com/dashboard
+        events:
+          type: array
+          description: Array of captured events
+          items:
+            $ref: '#/components/schemas/EventDto'
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp in milliseconds for the batch
+          example: 1708777200000
+
+    EventDto:
+      type: object
+      required:
+        - type
+        - timestamp
+        - data
+      properties:
+        type:
+          type: string
+          description: Event type (e.g., rrweb/full-snapshot, rrweb/mouse-move)
+          example: rrweb/full-snapshot
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp in milliseconds when the event occurred
+          example: 1708777200000
+        data:
+          type: object
+          description: Event data payload (structure varies by event type)
+          additionalProperties: true
+
+    SessionListResponse:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: sess_abc123def456
+              userId:
+                type: string
+                example: user_789xyz
+              userEmail:
+                type: string
+                example: user@example.com
+              createdAt:
+                type: string
+                format: date-time
+              lastEventAt:
+                type: string
+                format: date-time
+              eventCount:
+                type: integer
+                example: 42
+              url:
+                type: string
+                example: https://example.com/dashboard
+        total:
+          type: integer
+          example: 150
+        limit:
+          type: integer
+          example: 50
+        offset:
+          type: integer
+          example: 0
+
+    SessionDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          example: sess_abc123def456
+        userId:
+          type: string
+          example: user_789xyz
+        userEmail:
+          type: string
+          example: user@example.com
+        userAgent:
+          type: string
+          example: Mozilla/5.0...
+        createdAt:
+          type: string
+          format: date-time
+        lastEventAt:
+          type: string
+          format: date-time
+        eventCount:
+          type: integer
+          example: 42
+        duration:
+          type: integer
+          description: Duration in milliseconds
+          example: 120000
+        url:
+          type: string
+          example: https://example.com/dashboard
+
+    SessionEventsResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          example: sess_abc123def456
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventDto'
+
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Invalid request data
+        error:
+          type: string
+          example: Bad Request

@@ -1,0 +1,22 @@
+{
+  "name": "@replaydash/api-docs",
+  "version": "1.0.0",
+  "description": "ReplayDash API Documentation",
+  "scripts": {
+    "serve": "node serve.js",
+    "validate": "swagger-cli validate openapi.json",
+    "convert:yaml": "swagger-cli bundle openapi.json -o openapi.yaml -t yaml",
+    "convert:json": "swagger-cli bundle openapi.yaml -o openapi.json -t json"
+  },
+  "keywords": [
+    "api",
+    "documentation",
+    "openapi",
+    "swagger"
+  ],
+  "author": "ReplayDash",
+  "license": "MIT",
+  "devDependencies": {
+    "swagger-cli": "^4.0.4"
+  }
+}

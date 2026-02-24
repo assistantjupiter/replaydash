@@ -3,22 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "clean": "turbo run clean",
-    "type-check": "turbo run type-check"
+    "dev:sdk": "npm run dev --workspace=@replaydash/sdk",
+    "dev:api": "npm run dev --workspace=@replaydash/api",
+    "dev:dashboard": "npm run dev --workspace=@replaydash/dashboard",
+    "build:sdk": "npm run build --workspace=@replaydash/sdk",
+    "build:api": "npm run build --workspace=@replaydash/api",
+    "build:dashboard": "npm run build --workspace=@replaydash/dashboard",
+    "build": "npm run build:sdk && npm run build:api && npm run build:dashboard"
   },
   "devDependencies": {
-    "turbo": "^2.3.3",
-    "typescript": "^5.7.2"
-  },
-  "packageManager": "npm@10.9.2",
-  "engines": {
-    "node": ">=20.0.0"
+    "typescript": "^5.3.3"
   }
 }

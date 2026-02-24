@@ -1,72 +1,109 @@
-/**
- * ReplayDash SDK
- * Browser-based session recording SDK
- */
+import { ReplayDashConfig } from './types';
+import { SessionManager } from './session';
+import { Recorder } from './recorder';
+import { Transport } from './transport';
+import { ConsoleCapture } from './console-capture';
+import { ErrorCapture } from './error-capture';
+import { NetworkCapture } from './network-capture';
 
-export interface ReplayDashConfig {
-  apiKey: string;
-  endpoint?: string;
-  sampleRate?: number;
-  maskAllInputs?: boolean;
-  maskTextSelector?: string;
-}
+class ReplayDash {
+  private config: ReplayDashConfig | null = null;
+  private sessionManager: SessionManager | null = null;
+  private recorder: Recorder | null = null;
+  private transport: Transport | null = null;
+  private consoleCapture: ConsoleCapture | null = null;
+  private errorCapture: ErrorCapture | null = null;
+  private networkCapture: NetworkCapture | null = null;
+  private isInitialized: boolean = false;
 
-export class ReplayDash {
-  private config: ReplayDashConfig;
-  private sessionId: string | null = null;
-
-  constructor(config: ReplayDashConfig) {
-    this.config = {
-      endpoint: 'http://localhost:3001/api/events',
-      sampleRate: 1.0,
-      maskAllInputs: true,
-      ...config,
-    };
-  }
-
-  /**
-   * Initialize the SDK and start recording
-   */
-  public init(): void {
-    this.sessionId = this.generateSessionId();
-    console.log('[ReplayDash] SDK initialized', { sessionId: this.sessionId });
-    
-    // TODO: Implement actual recording logic
-    // - DOM mutation observer
-    // - Event listeners (click, scroll, input, etc.)
-    // - Network request interception
-    // - Console log capture
-  }
-
-  /**
-   * Stop recording and flush events
-   */
-  public stop(): void {
-    console.log('[ReplayDash] Stopping recording');
-    this.sessionId = null;
-  }
-
-  /**
-   * Manually track a custom event
-   */
-  public track(eventName: string, properties?: Record<string, any>): void {
-    if (!this.sessionId) {
-      console.warn('[ReplayDash] SDK not initialized');
+  init(config: ReplayDashConfig): void {
+    if (this.isInitialized) {
+      console.warn('[ReplayDash] Already initialized');
       return;
     }
 
-    console.log('[ReplayDash] Tracking event', { eventName, properties });
-    // TODO: Send event to backend
+    if (!config.apiKey) {
+      throw new Error('[ReplayDash] API key is required');
+    }
+
+    this.config = config;
+    this.sessionManager = new SessionManager();
+    this.transport = new Transport(config);
+
+    // Start recorder
+    this.recorder = new Recorder(config, (events) => {
+      if (this.transport && this.sessionManager) {
+        this.transport.send(events, this.sessionManager.getMetadata());
+      }
+    });
+    this.recorder.start();
+
+    // Start console capture if enabled
+    if (config.captureConsole !== false) {
+      this.consoleCapture = new ConsoleCapture((event) => {
+        if (this.transport && this.sessionManager) {
+          this.transport.send([event], this.sessionManager.getMetadata());
+        }
+      });
+      this.consoleCapture.start();
+    }
+
+    // Start error capture
+    this.errorCapture = new ErrorCapture((event) => {
+      if (this.transport && this.sessionManager) {
+        this.transport.send([event], this.sessionManager.getMetadata());
+      }
+    });
+    this.errorCapture.start();
+
+    // Start network capture if enabled
+    if (config.captureNetwork !== false) {
+      this.networkCapture = new NetworkCapture(
+        (event) => {
+          if (this.transport && this.sessionManager) {
+            this.transport.send([event], this.sessionManager.getMetadata());
+          }
+        },
+        config.networkConfig
+      );
+      this.networkCapture.start();
+    }
+
+    this.isInitialized = true;
+    console.log('[ReplayDash] Initialized successfully');
   }
 
-  private generateSessionId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  setUser(userId: string, userEmail?: string): void {
+    if (!this.sessionManager) {
+      console.warn('[ReplayDash] Not initialized');
+      return;
+    }
+
+    this.sessionManager.setUserId(userId);
+    if (userEmail) {
+      this.sessionManager.setUserEmail(userEmail);
+    }
+  }
+
+  getSessionId(): string | null {
+    return this.sessionManager?.getSessionId() || null;
+  }
+
+  stop(): void {
+    this.recorder?.stop();
+    this.consoleCapture?.stop();
+    this.errorCapture?.stop();
+    this.networkCapture?.stop();
+    this.isInitialized = false;
+    console.log('[ReplayDash] Stopped');
   }
 }
 
-// Export default instance creator
-export function init(config: ReplayDashConfig): ReplayDash {
-  const instance = new ReplayDash(config);
-  instance.init();
-  return instance;
-}
+// Export singleton instance
+export const replayDash = new ReplayDash();
+
+// Export for direct instantiation if needed
+export { ReplayDash };
+
+// Export types
+export * from './types';
