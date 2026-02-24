@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchSessionEvents, SessionEvent } from '@/lib/api'
 import { NetworkViewer, NetworkRequest } from './NetworkViewer'
 import { EventTimeline } from './EventTimeline'
+import { PageNavigationPlayer } from './PageNavigationPlayer'
 
 interface SessionReplayPlayerProps {
   sessionId: string
@@ -33,19 +34,20 @@ export function SessionReplayPlayer({ sessionId }: SessionReplayPlayerProps) {
       setLoading(true)
       const data = await fetchSessionEvents(sessionId)
       
-      setSessionInfo(data.session)
+      // Store full response including events
+      setSessionInfo({ ...data.session, events: data.events })
       
       // Filter only rrweb events
       const rrwebEvents = data.events
-        .filter((e) => e.type === 'rrweb')
-        .map((e) => e.data)
+        .filter((e: any) => e.type === 'rrweb')
+        .map((e: any) => e.data)
       
       setEvents(rrwebEvents)
 
       // Extract network requests
       const networkEvents = data.events
-        .filter((e) => e.type === 'network')
-        .map((e, index) => ({
+        .filter((e: any) => e.type === 'network')
+        .map((e: any, index: number) => ({
           id: e.id || `network_${index}`,
           type: e.type,
           timestamp: e.timestamp,
@@ -116,12 +118,12 @@ export function SessionReplayPlayer({ sessionId }: SessionReplayPlayerProps) {
     )
   }
 
-  // If no rrweb events, show a simple event timeline instead
+  // If no rrweb events, check if we have page_view events for navigation replay
   if (events.length === 0) {
-    // Check if we have any events at all (like page_view events)
-    const allEvents = sessionInfo?.eventCount > 0
+    // Check if we have page_view events
+    const pageViewEvents = sessionInfo?.events?.filter((e: any) => e.type === 'page_view') || []
 
-    if (!allEvents) {
+    if (pageViewEvents.length === 0) {
       return (
         <div className="bg-white rounded-2xl shadow-lg p-16 text-center border border-gray-200">
           <div className="text-6xl mb-4">🎬</div>
@@ -133,17 +135,66 @@ export function SessionReplayPlayer({ sessionId }: SessionReplayPlayerProps) {
       )
     }
 
-    // We have events, but they're not rrweb DOM recordings - show timeline instead
+    // We have page_view events - show navigation replay player
     return (
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">📊 Event Timeline</h3>
-          <p className="text-gray-600">
-            Basic event tracking active. For full session replay with DOM recordings, integrate the rrweb SDK.
-          </p>
-        </div>
-        <div className="p-6">
-          <EventTimeline sessionId={sessionId} />
+      <div className="space-y-6">
+        {/* Session Info Card */}
+        {sessionInfo && (
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+            <div className="grid md:grid-cols-4 gap-6">
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                  📊
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Events Captured</div>
+                  <div className="text-2xl font-bold text-gray-900">{sessionInfo.eventCount || pageViewEvents.length}</div>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                  ⏱️
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Session Started</div>
+                  <div className="text-lg font-semibold text-gray-900">
+                    {new Date(sessionInfo.startedAt).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-red-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                  🎬
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Page Views</div>
+                  <div className="text-2xl font-bold text-gray-900">{pageViewEvents.length}</div>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                  🗺️
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Unique Pages</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {new Set(pageViewEvents.map((e: any) => e.data?.pathname || '')).size}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Page Navigation Player */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden p-6">
+          <div className="mb-6">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">🎬 Page Navigation Replay</h3>
+            <p className="text-gray-600">
+              Watch the user&apos;s journey through your app. For full DOM session replay, integrate the rrweb SDK.
+            </p>
+          </div>
+          <PageNavigationPlayer events={pageViewEvents} />
         </div>
       </div>
     )
