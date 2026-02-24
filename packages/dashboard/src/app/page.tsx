@@ -43,7 +43,7 @@ export default function HomePage() {
               {isSignedIn ? (
                 <div className="flex items-center gap-4">
                   <Link
-                    href="/sessions"
+                    href="/dashboard"
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium"
                   >
                     Dashboard
@@ -494,10 +494,10 @@ export default function HomePage() {
             </StarBorder>
             {isSignedIn ? (
               <Link
-                href="/sessions"
+                href="/dashboard"
                 className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-xl font-semibold text-lg hover:bg-white/10 transition-all hover:scale-105"
               >
-                View Demo Sessions →
+                Go to Dashboard →
               </Link>
             ) : (
               <SignInButton mode="modal">
@@ -543,7 +543,7 @@ export default function HomePage() {
               <ul className="space-y-2 text-sm">
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><Link href="/sessions" className="hover:text-white transition-colors">Dashboard</Link></li>
+                <li><Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link></li>
                 <li><a href="#changelog" className="hover:text-white transition-colors">Changelog</a></li>
               </ul>
             </div>
