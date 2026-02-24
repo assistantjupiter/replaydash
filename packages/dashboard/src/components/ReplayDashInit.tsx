@@ -13,7 +13,15 @@ export default function ReplayDashInit() {
       return
     }
 
+    // Generate or get session ID FIRST (before any tracking)
+    let sessionId = localStorage.getItem('replaydash-session-id')
+    if (!sessionId) {
+      sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      localStorage.setItem('replaydash-session-id', sessionId)
+    }
+
     console.log('🎬 ReplayDash self-tracking initialized for:', user?.primaryEmailAddress?.emailAddress || 'anonymous')
+    console.log('📝 Session ID:', sessionId)
     
     // Basic event tracking - sends page views and user info to our own API
     const trackPageView = async () => {
@@ -23,15 +31,14 @@ export default function ReplayDashInit() {
       const now = Date.now()
       
       try {
-        await fetch(`${apiUrl}/api/v1/events`, {
+        const response = await fetch(`${apiUrl}/api/v1/events`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-API-Key': apiKey,
           },
           body: JSON.stringify({
-            sessionId: localStorage.getItem('replaydash-session-id') || 
-                      `session_${now}_${Math.random().toString(36).substr(2, 9)}`,
+            sessionId: sessionId,
             userId: user?.id,
             userEmail: user?.primaryEmailAddress?.emailAddress,
             userAgent: navigator.userAgent,
@@ -46,15 +53,16 @@ export default function ReplayDashInit() {
             }]
           })
         })
+        
+        const result = await response.json()
+        if (result.excluded) {
+          console.log('🚫 Path excluded from tracking:', window.location.pathname)
+        } else {
+          console.log('✅ Tracked page view:', window.location.pathname)
+        }
       } catch (error) {
-        console.warn('ReplayDash tracking error:', error)
+        console.error('❌ ReplayDash tracking error:', error)
       }
-    }
-
-    // Store session ID
-    if (!localStorage.getItem('replaydash-session-id')) {
-      localStorage.setItem('replaydash-session-id', 
-        `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
     }
 
     // Track initial page view
