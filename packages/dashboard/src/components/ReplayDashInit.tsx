@@ -20,6 +20,8 @@ export default function ReplayDashInit() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'
       const apiKey = process.env.NEXT_PUBLIC_API_KEY || 'dev-secret-key-change-in-production'
       
+      const now = Date.now()
+      
       try {
         await fetch(`${apiUrl}/api/v1/events`, {
           method: 'POST',
@@ -29,16 +31,17 @@ export default function ReplayDashInit() {
           },
           body: JSON.stringify({
             sessionId: localStorage.getItem('replaydash-session-id') || 
-                      `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                      `session_${now}_${Math.random().toString(36).substr(2, 9)}`,
             userId: user?.id,
             userEmail: user?.primaryEmailAddress?.emailAddress,
+            userAgent: navigator.userAgent,
+            url: window.location.href,
+            timestamp: now,
             events: [{
               type: 'page_view',
-              timestamp: Date.now(),
+              timestamp: now,
               data: {
-                url: window.location.href,
                 pathname: window.location.pathname,
-                userAgent: navigator.userAgent,
               }
             }]
           })
