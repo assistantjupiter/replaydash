@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchSessionEvents, SessionEvent } from '@/lib/api'
 import { NetworkViewer, NetworkRequest } from './NetworkViewer'
+import { EventTimeline } from './EventTimeline'
 
 interface SessionReplayPlayerProps {
   sessionId: string
@@ -115,14 +116,35 @@ export function SessionReplayPlayer({ sessionId }: SessionReplayPlayerProps) {
     )
   }
 
+  // If no rrweb events, show a simple event timeline instead
   if (events.length === 0) {
+    // Check if we have any events at all (like page_view events)
+    const allEvents = sessionInfo?.eventCount > 0
+
+    if (!allEvents) {
+      return (
+        <div className="bg-white rounded-2xl shadow-lg p-16 text-center border border-gray-200">
+          <div className="text-6xl mb-4">🎬</div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">No replay data found</h3>
+          <p className="text-gray-600 max-w-md mx-auto">
+            This session doesn&apos;t have any replay data yet. Make sure the SDK is properly configured.
+          </p>
+        </div>
+      )
+    }
+
+    // We have events, but they're not rrweb DOM recordings - show timeline instead
     return (
-      <div className="bg-white rounded-2xl shadow-lg p-16 text-center border border-gray-200">
-        <div className="text-6xl mb-4">🎬</div>
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">No replay data found</h3>
-        <p className="text-gray-600 max-w-md mx-auto">
-          This session doesn&apos;t have any replay data yet. Make sure the SDK is properly configured.
-        </p>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">📊 Event Timeline</h3>
+          <p className="text-gray-600">
+            Basic event tracking active. For full session replay with DOM recordings, integrate the rrweb SDK.
+          </p>
+        </div>
+        <div className="p-6">
+          <EventTimeline sessionId={sessionId} />
+        </div>
       </div>
     )
   }
