@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
+import ReplayDashInit from '@/components/ReplayDashInit'
 
 export const metadata: Metadata = {
   title: 'ReplayDash - Session Replay & Event Tracking',
@@ -19,7 +20,10 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className="antialiased">{children}</body>
+        <body className="antialiased">
+          <ReplayDashInit />
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   )
