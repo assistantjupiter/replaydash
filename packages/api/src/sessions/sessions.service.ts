@@ -190,4 +190,25 @@ export class SessionsService {
       })),
     };
   }
+
+  async deleteSession(sessionId: string) {
+    // Check if session exists
+    const session = await this.prisma.session.findUnique({
+      where: { sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Session ${sessionId} not found`);
+    }
+
+    // Delete session (events will be cascade deleted)
+    await this.prisma.session.delete({
+      where: { sessionId },
+    });
+
+    return {
+      success: true,
+      message: `Session ${sessionId} deleted successfully`,
+    };
+  }
 }

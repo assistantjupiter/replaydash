@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { searchSessions, Session, SearchParams } from '@/lib/api'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, differenceInMinutes, differenceInSeconds } from 'date-fns'
+import { Trash2, Download, RefreshCw } from 'lucide-react'
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -37,6 +38,11 @@ export function SessionList() {
   const [endDate, setEndDate] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
   const [pageSize] = useState(20)
+
+  // New features state
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv' | null>(null)
 
   // Debounce search query
   const debouncedSearchQuery = useDebounce(searchQuery, 500)
@@ -73,6 +79,17 @@ export function SessionList() {
     loadSessions()
   }, [loadSessions])
 
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(() => {
+      loadSessions()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [autoRefresh, loadSessions])
+
   const handleClearFilters = () => {
     setSearchQuery('')
     setBrowser('')
@@ -81,6 +98,81 @@ export function SessionList() {
     setStartDate('')
     setEndDate('')
     setCurrentPage(0)
+  }
+
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY || ''
+      
+      await fetch(`${apiUrl}/api/v1/sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-API-Key': apiKey,
+        },
+      })
+
+      // Remove from local state
+      setSessions(sessions.filter(s => s.sessionId !== sessionId))
+      setTotal(total - 1)
+      setDeleteConfirm(null)
+    } catch (error) {
+      alert('Failed to delete session')
+    }
+  }
+
+  const handleExportSessions = () => {
+    if (!exportFormat) return
+
+    if (exportFormat === 'json') {
+      const dataStr = JSON.stringify(sessions, null, 2)
+      const dataBlob = new Blob([dataStr], { type: 'application/json' })
+      const url = URL.createObjectURL(dataBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `replaydash-sessions-${new Date().toISOString()}.json`
+      link.click()
+    } else if (exportFormat === 'csv') {
+      const headers = ['Session ID', 'User', 'Browser', 'Device', 'URL', 'Events', 'Has Errors', 'Started At', 'Last Active']
+      const rows = sessions.map(s => [
+        s.sessionId,
+        s.userEmail || s.userId || 'Anonymous',
+        s.browser || '',
+        s.device || '',
+        s.url || '',
+        s.eventCount.toString(),
+        s.hasErrors ? 'Yes' : 'No',
+        s.startedAt,
+        s.lastActive,
+      ])
+      
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+
+      const dataBlob = new Blob([csvContent], { type: 'text/csv' })
+      const url = URL.createObjectURL(dataBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `replaydash-sessions-${new Date().toISOString()}.csv`
+      link.click()
+    }
+
+    setExportFormat(null)
+  }
+
+  const formatSessionDuration = (session: Session) => {
+    const start = new Date(session.startedAt)
+    const end = new Date(session.lastActive)
+    const diffMinutes = differenceInMinutes(end, start)
+    const diffSeconds = differenceInSeconds(end, start)
+
+    if (diffMinutes > 0) {
+      return `${diffMinutes}m`
+    } else {
+      return `${diffSeconds}s`
+    }
   }
 
   const hasActiveFilters = !!(
@@ -227,20 +319,74 @@ export function SessionList() {
             />
           </div>
 
-          {/* Active Filters & Clear */}
-          {hasActiveFilters && (
-            <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+          {/* Active Filters & Actions */}
+          <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+            <div className="flex items-center gap-4">
               <div className="text-sm text-gray-600">
-                Found <span className="font-semibold text-gray-900">{total}</span> session{total !== 1 ? 's' : ''}
+                {hasActiveFilters && 'Found '}
+                <span className="font-semibold text-gray-900">{total}</span> session{total !== 1 ? 's' : ''}
               </div>
+
+              {/* Auto-refresh toggle */}
               <button
-                onClick={handleClearFilters}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  autoRefresh
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title={autoRefresh ? 'Auto-refresh enabled (30s)' : 'Auto-refresh disabled'}
               >
-                Clear filters
+                <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+                {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
               </button>
             </div>
-          )}
+
+            <div className="flex items-center gap-2">
+              {/* Export dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setExportFormat(exportFormat ? null : 'json')}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                  disabled={sessions.length === 0}
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </button>
+                {exportFormat && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                    <button
+                      onClick={() => {
+                        setExportFormat('json')
+                        handleExportSessions()
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg transition-colors"
+                    >
+                      Export as JSON
+                    </button>
+                    <button
+                      onClick={() => {
+                        setExportFormat('csv')
+                        handleExportSessions()
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-b-lg transition-colors"
+                    >
+                      Export as CSV
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={handleClearFilters}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -294,6 +440,9 @@ export function SessionList() {
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Events
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Duration
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Last Active
@@ -367,16 +516,47 @@ export function SessionList() {
                         {session.hasErrors && ' ⚠️'}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatSessionDuration(session)}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDistanceToNow(new Date(session.lastActive), { addSuffix: true })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Link
-                        href={`/sessions/${session.sessionId}`}
-                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all text-sm font-semibold"
-                      >
-                        View Replay →
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/sessions/${session.sessionId}`}
+                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all text-sm font-semibold"
+                        >
+                          View Replay →
+                        </Link>
+                        {deleteConfirm === session.sessionId ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleDeleteSession(session.sessionId)}
+                              className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs font-semibold"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(null)}
+                              className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-xs font-semibold"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm(session.sessionId)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete session"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

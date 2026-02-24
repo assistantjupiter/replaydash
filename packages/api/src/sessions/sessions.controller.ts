@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Delete, Param, Query, UseGuards } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { ApiKeyGuard } from '../auth/api-key.guard';
 import { SearchSessionsDto } from './dto/search-sessions.dto';
@@ -32,5 +32,10 @@ export class SessionsController {
   @Get(':id/events')
   async getSessionEvents(@Param('id') id: string) {
     return this.sessionsService.getSessionEvents(id);
+  }
+
+  @Delete(':id')
+  async deleteSession(@Param('id') id: string) {
+    return this.sessionsService.deleteSession(id);
   }
 }
