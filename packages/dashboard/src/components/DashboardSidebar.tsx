@@ -32,9 +32,9 @@ export function DashboardSidebar() {
       {/* Logo */}
       <div className="flex h-16 items-center px-6 border-b border-gray-700">
         <img 
-          src="/logo-full.png" 
+          src="/logo-full-white.webp" 
           alt="ReplayDash" 
-          className="h-6"
+          className="h-7"
         />
       </div>
 

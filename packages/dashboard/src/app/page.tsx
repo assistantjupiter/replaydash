@@ -25,7 +25,7 @@ export default function HomePage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center group cursor-pointer">
               <img 
-                src="/logo-full.png" 
+                src="/logo-full.webp" 
                 alt="ReplayDash" 
                 className="h-8 transform group-hover:scale-105 transition-transform duration-200"
               />
@@ -517,9 +517,9 @@ export default function HomePage() {
             <div className="md:col-span-2">
               <div className="flex items-center mb-4">
                 <img 
-                  src="/logo-full.png" 
+                  src="/logo-full-white.webp" 
                   alt="ReplayDash" 
-                  className="h-8 brightness-0 invert"
+                  className="h-8"
                 />
               </div>
               <p className="text-sm mb-4 max-w-xs">

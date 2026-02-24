@@ -11,9 +11,9 @@ export default function SessionsPage() {
           <div className="flex justify-between items-center h-16">
             <Link href="/dashboard" className="flex items-center group cursor-pointer">
               <img 
-                src="/logo-full.png" 
+                src="/logo-full.webp" 
                 alt="ReplayDash" 
-                className="h-6 transform group-hover:scale-105 transition-transform duration-200"
+                className="h-7 transform group-hover:scale-105 transition-transform duration-200"
               />
             </Link>
             <div className="flex items-center gap-4">
