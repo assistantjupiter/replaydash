@@ -7,19 +7,23 @@ export class ApiKeyGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const apiKey = request.headers['x-api-key'];
+    const apiKeyValue = request.headers['x-api-key'];
 
-    if (!apiKey) {
+    if (!apiKeyValue) {
       throw new UnauthorizedException('API key is required');
     }
 
-    // For MVP, just check against env variable
-    // Later: validate against database
-    const validApiKey = process.env.API_KEY;
-    
-    if (apiKey !== validApiKey) {
-      throw new UnauthorizedException('Invalid API key');
+    // Validate against database
+    const apiKey = await this.prisma.apiKey.findUnique({
+      where: { key: apiKeyValue },
+    });
+
+    if (!apiKey || !apiKey.active) {
+      throw new UnauthorizedException('Invalid or inactive API key');
     }
+
+    // Attach API key object to request for use in controllers
+    request.apiKey = apiKey;
 
     return true;
   }

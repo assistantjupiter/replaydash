@@ -37,11 +37,11 @@
                     "userEmail": "user@example.com",
                     "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
                     "url": "https://example.com/dashboard",
-                    "timestamp": 1771946247460,
+                    "timestamp": 1771949663520,
                     "events": [
                       {
                         "type": "rrweb/full-snapshot",
-                        "timestamp": 1771946247460,
+                        "timestamp": 1771949663520,
                         "data": {
                           "node": {
                             "type": 0,
@@ -55,7 +55,7 @@
                       },
                       {
                         "type": "rrweb/mouse-move",
-                        "timestamp": 1771946247560,
+                        "timestamp": 1771949663620,
                         "data": {
                           "x": 150,
                           "y": 200
@@ -79,6 +79,10 @@
                     "success": {
                       "type": "boolean",
                       "example": true
+                    },
+                    "excluded": {
+                      "type": "boolean",
+                      "example": false
                     }
                   }
                 }

@@ -2,7 +2,9 @@ import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiSecurity, ApiBody } from '@nestjs/swagger';
 import { EventsService } from './events.service';
 import { ApiKeyGuard } from '../auth/api-key.guard';
+import { CurrentApiKey } from '../auth/api-key.decorator';
 import { IngestEventsDto } from './dto/ingest-events.dto';
+import { ApiKey } from '@prisma/client';
 
 @ApiTags('events')
 @ApiSecurity('api-key')
@@ -54,6 +56,7 @@ export class EventsController {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
+        excluded: { type: 'boolean', example: false },
       },
     },
   })
@@ -69,8 +72,51 @@ export class EventsController {
     status: 429,
     description: 'Rate limit exceeded',
   })
-  async ingestEvents(@Body() dto: IngestEventsDto) {
+  async ingestEvents(
+    @Body() dto: IngestEventsDto,
+    @CurrentApiKey() apiKey: ApiKey,
+  ) {
+    // Check if URL matches any excluded path patterns
+    const isExcluded = this.isPathExcluded(dto.url, apiKey.excludedPaths);
+    
+    if (isExcluded) {
+      // Return success but don't process the events
+      return { success: true, excluded: true };
+    }
+
     await this.eventsService.ingestEvents(dto);
-    return { success: true };
+    return { success: true, excluded: false };
+  }
+
+  /**
+   * Check if a URL path matches any of the excluded path patterns
+   * Supports wildcards: /dashboard/* matches /dashboard/anything
+   */
+  private isPathExcluded(url: string | undefined, excludedPaths: string[]): boolean {
+    if (!url || excludedPaths.length === 0) {
+      return false;
+    }
+
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+
+      return excludedPaths.some((pattern) => {
+        // Convert pattern to regex
+        // /dashboard -> exact match
+        // /dashboard/* -> prefix match
+        // /dashboard/*/settings -> wildcard match
+        const regexPattern = pattern
+          .replace(/\*/g, '.*')  // * becomes .*
+          .replace(/\//g, '\\/')  // escape slashes
+          + (pattern.endsWith('*') ? '' : '$');  // exact match if no trailing *
+
+        const regex = new RegExp(`^${regexPattern}`);
+        return regex.test(pathname);
+      });
+    } catch (e) {
+      // If URL parsing fails, don't exclude
+      return false;
+    }
   }
 }

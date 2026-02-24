@@ -10,6 +10,7 @@ interface ApiKey {
   created: string
   lastUsed: string
   type: 'frontend' | 'backend'
+  excludedPaths: string[]
 }
 
 export default function ApiKeysPage() {
@@ -20,7 +21,8 @@ export default function ApiKeysPage() {
       key: 'rd_pub_live_1234567890abcdef',
       created: '2026-02-20',
       lastUsed: '2 hours ago',
-      type: 'frontend'
+      type: 'frontend',
+      excludedPaths: ['/dashboard', '/admin/*']
     },
     {
       id: '2',
@@ -28,7 +30,8 @@ export default function ApiKeysPage() {
       key: 'rd_pub_test_abcdef1234567890',
       created: '2026-02-15',
       lastUsed: '5 minutes ago',
-      type: 'frontend'
+      type: 'frontend',
+      excludedPaths: []
     }
   ])
   
@@ -37,6 +40,8 @@ export default function ApiKeysPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
   const [newKeyType, setNewKeyType] = useState<'frontend' | 'backend'>('frontend')
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
+  const [newPath, setNewPath] = useState<Record<string, string>>({})
 
   const toggleKeyVisibility = (id: string) => {
     setVisibleKeys(prev => {
@@ -74,12 +79,45 @@ export default function ApiKeysPage() {
       key: `rd_pub_${newKeyType === 'frontend' ? 'live' : 'secret'}_${Math.random().toString(36).substring(2, 18)}`,
       created: new Date().toISOString().split('T')[0],
       lastUsed: 'Never',
-      type: newKeyType
+      type: newKeyType,
+      excludedPaths: []
     }
 
     setApiKeys([...apiKeys, newKey])
     setNewKeyName('')
     setShowCreateModal(false)
+  }
+
+  const toggleExpanded = (id: string) => {
+    setExpandedKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const addExcludedPath = (keyId: string) => {
+    const path = newPath[keyId]?.trim()
+    if (!path) return
+
+    setApiKeys(keys => keys.map(k => 
+      k.id === keyId 
+        ? { ...k, excludedPaths: [...k.excludedPaths, path] }
+        : k
+    ))
+    setNewPath(prev => ({ ...prev, [keyId]: '' }))
+  }
+
+  const removeExcludedPath = (keyId: string, pathIndex: number) => {
+    setApiKeys(keys => keys.map(k => 
+      k.id === keyId
+        ? { ...k, excludedPaths: k.excludedPaths.filter((_, i) => i !== pathIndex) }
+        : k
+    ))
   }
 
   return (
@@ -213,6 +251,74 @@ export default function ApiKeysPage() {
                   >
                     <Trash2 className="h-5 w-5" />
                   </button>
+                </div>
+
+                {/* Excluded Paths Section */}
+                <div className="mt-4 border-t border-gray-200 pt-4">
+                  <button
+                    onClick={() => toggleExpanded(apiKey.id)}
+                    className="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                  >
+                    <span>🚫 Excluded Paths {apiKey.excludedPaths.length > 0 && `(${apiKey.excludedPaths.length})`}</span>
+                    <span className="text-xs text-gray-500">
+                      {expandedKeys.has(apiKey.id) ? '▲' : '▼'}
+                    </span>
+                  </button>
+
+                  {expandedKeys.has(apiKey.id) && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs text-gray-600 mb-2">
+                        Paths matching these patterns won&apos;t be recorded. Use <code className="bg-gray-100 px-1 rounded">*</code> for wildcards.
+                      </p>
+
+                      {/* Existing excluded paths */}
+                      {apiKey.excludedPaths.length > 0 && (
+                        <div className="space-y-1 mb-3">
+                          {apiKey.excludedPaths.map((path, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg">
+                              <code className="flex-1 text-sm text-gray-700">{path}</code>
+                              <button
+                                onClick={() => removeExcludedPath(apiKey.id, index)}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                                title="Remove"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Add new path */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newPath[apiKey.id] || ''}
+                          onChange={(e) => setNewPath(prev => ({ ...prev, [apiKey.id]: e.target.value }))}
+                          onKeyDown={(e) => e.key === 'Enter' && addExcludedPath(apiKey.id)}
+                          placeholder="/dashboard or /admin/*"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                        <button
+                          onClick={() => addExcludedPath(apiKey.id)}
+                          disabled={!newPath[apiKey.id]?.trim()}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 font-medium rounded-lg text-sm transition-all"
+                        >
+                          Add
+                        </button>
+                      </div>
+
+                      {/* Examples */}
+                      <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                        <p className="text-xs font-medium text-blue-900 mb-1">Examples:</p>
+                        <ul className="text-xs text-blue-700 space-y-0.5">
+                          <li><code className="bg-blue-100 px-1 rounded">/dashboard</code> - Exact match</li>
+                          <li><code className="bg-blue-100 px-1 rounded">/admin/*</code> - All admin pages</li>
+                          <li><code className="bg-blue-100 px-1 rounded">/api/*/internal</code> - Wildcard in middle</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
